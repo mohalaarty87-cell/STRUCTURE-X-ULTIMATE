@@ -1,0 +1,7 @@
+{
+  "name": "STRUCTURE-X ULTIMATE",
+  "description": "3D Structural Analysis & BIM Modeling Workspace with FEA solver, interactive 3D CAD viewport, member property inspector, and structural code checks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

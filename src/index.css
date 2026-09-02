@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-bg: #121416;
+    --color-surface: #1e2022;
+    --color-primary: #96ccff;
+    --color-tertiary: #7ed99e;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #121416;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333537;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #41474f;
+}
+
+/* RTL Support for Arabic */
+[dir="rtl"] {
+  font-family: 'Cairo', 'Inter', sans-serif;
+}
