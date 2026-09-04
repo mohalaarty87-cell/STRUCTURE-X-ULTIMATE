@@ -34,6 +34,7 @@ import { TemplatesModal } from './components/TemplatesModal';
 import { MaterialsModal } from './components/MaterialsModal';
 import { ValidationLogsModal, HelpGuideModal } from './components/ValidationLogsModal';
 import { ModelingToolsModal } from './components/ModelingToolsModal';
+import { CadBimModal } from './components/CadBimModal';
 
 export default function App() {
   // Main Structural Model State with Persistence
@@ -105,6 +106,7 @@ export default function App() {
   const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
   const [showHelpModal, setShowHelpModal] = useState<boolean>(false);
   const [showModelingModal, setShowModelingModal] = useState<boolean>(false);
+  const [showCadBimModal, setShowCadBimModal] = useState<boolean>(false);
 
   // Model update with history snapshot and autosave
   const handleUpdateModelWithHistory = useCallback((newModel: StructuralModel, actionDescription: string) => {
@@ -540,6 +542,7 @@ export default function App() {
         onOpenSections={() => setShowSectionEditorModal(true)}
         onOpenReports={() => setShowReportsModal(true)}
         onOpenHelp={() => setShowHelpModal(true)}
+        onOpenCadBim={() => setShowCadBimModal(true)}
         isAnalyzing={isAnalyzing}
         theme={theme}
         setTheme={setTheme}
@@ -688,6 +691,22 @@ export default function App() {
           summary={analysisSummary}
           onClose={() => setShowAnalysisModal(false)}
           lang={lang}
+          onLoadModel={(newModel, desc) => {
+            handleUpdateModelWithHistory(newModel, desc);
+            const res = runStructuralAnalysis(newModel);
+            setAnalysisSummary(res.summary);
+            setSelectedElementId(newModel.members[0]?.id || null);
+            setConsoleMessages(prev => [
+              ...prev,
+              {
+                id: `msg-scale-${Date.now()}`,
+                timestamp: new Date().toLocaleTimeString(),
+                type: 'success',
+                text: `[PHASE 15 SCALE] Loaded large-scale model: ${desc} (${newModel.members.length.toLocaleString()} elements)`,
+                source: 'SOLVER'
+              }
+            ]);
+          }}
         />
       )}
 
@@ -733,6 +752,20 @@ export default function App() {
       {showHelpModal && (
         <HelpGuideModal
           onClose={() => setShowHelpModal(false)}
+          lang={lang}
+        />
+      )}
+
+      {showCadBimModal && (
+        <CadBimModal
+          currentModel={model}
+          onCommitModel={(newModel, actionDescription) => {
+            handleUpdateModelWithHistory(newModel, actionDescription);
+            const res = runStructuralAnalysis(newModel);
+            setAnalysisSummary(res.summary);
+            setSelectedElementId(newModel.members[0]?.id || null);
+          }}
+          onClose={() => setShowCadBimModal(false)}
           lang={lang}
         />
       )}

@@ -559,7 +559,7 @@ class FEMSolver3D:
             total_reactions=total_rx,
             equilibrium_error=eq_error,
             equilibrium_check=eq_check,
-            solver_mode="Sparse SciPy/SuperLU" if HAS_SCIPY else "Direct Matrix Engine",
+            solver_mode="Sparse SciPy/SuperLU" if HAS_SCIPY else "Sparse CSR / Preconditioned Conjugate Gradient (PCG)",
             execution_time_ms=round(exec_time, 2),
             num_frame_elements=len(self.elements),
             num_shell_elements=len(self.shell_elements),

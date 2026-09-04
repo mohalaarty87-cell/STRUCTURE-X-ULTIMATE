@@ -179,7 +179,7 @@ def solve_sparse_system(dok_K: Dict[Tuple[int, int], float],
                         p_free: List[float]) -> List[float]:
     """
     Solves K_ff * u_f = P_f using SciPy sparse direct solver (SuperLU) if available,
-    or converts reduced dense block for direct solution.
+    or the high-performance native CSR + Preconditioned Conjugate Gradient (PCG) sparse solver.
     """
     n_free = len(free_dofs)
     if n_free == 0:
@@ -207,10 +207,7 @@ def solve_sparse_system(dok_K: Dict[Tuple[int, int], float],
         except Exception:
             pass
 
-    # Dense fallback for free DOFs
-    K_dense = [[0.0 for _ in range(n_free)] for _ in range(n_free)]
-    for (i, j), val in dok_K.items():
-        if i in dof_map and j in dof_map:
-            K_dense[dof_map[i]][dof_map[j]] += val
+    # High-Performance native Sparse Engine (CSR + PCG)
+    from .sparse_engine import solve_sparse_system_optimized
+    return solve_sparse_system_optimized(dok_K, free_dofs, p_free)
 
-    return solve_linear_system(K_dense, p_free)

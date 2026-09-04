@@ -104,11 +104,24 @@ export class ShellLayer {
   }
 
   public clear(): void {
+    const disposeObj = (obj: THREE.Object3D) => {
+      if ((obj as any).geometry) {
+        (obj as any).geometry.dispose();
+      }
+      if ((obj as any).material) {
+        const mat = (obj as any).material;
+        if (Array.isArray(mat)) mat.forEach(m => m.dispose());
+        else mat.dispose();
+      }
+      while (obj.children.length > 0) {
+        disposeObj(obj.children[0]);
+        obj.remove(obj.children[0]);
+      }
+    };
+
     while (this.group.children.length > 0) {
       const child = this.group.children[0];
-      if (child instanceof THREE.Mesh) {
-        if (child.geometry) child.geometry.dispose();
-      }
+      disposeObj(child);
       this.group.remove(child);
     }
   }

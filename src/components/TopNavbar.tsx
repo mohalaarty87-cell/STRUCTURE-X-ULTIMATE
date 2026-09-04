@@ -16,7 +16,8 @@ import {
   Globe, 
   Sun, 
   Moon,
-  ChevronDown
+  ChevronDown,
+  Database
 } from 'lucide-react';
 
 interface TopNavbarProps {
@@ -28,6 +29,7 @@ interface TopNavbarProps {
   onOpenSections: () => void;
   onOpenReports: () => void;
   onOpenHelp: () => void;
+  onOpenCadBim?: () => void;
   isAnalyzing: boolean;
   theme: 'dark' | 'light';
   setTheme: (t: 'dark' | 'light') => void;
@@ -44,6 +46,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   onOpenSections,
   onOpenReports,
   onOpenHelp,
+  onOpenCadBim,
   isAnalyzing,
   theme,
   setTheme,
@@ -58,7 +61,9 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
       label: lang === 'ar' ? 'ملف' : 'File',
       items: [
         { label: lang === 'ar' ? 'نموذج جديد من القوالب...' : 'New Model from Template...', icon: FolderPlus, action: onOpenTemplates },
+        { label: lang === 'ar' ? 'تبادل بيانات CAD و BIM (IFC, DXF, Excel)...' : 'CAD & BIM Interoperability (IFC, DXF, Excel)...', icon: Database, action: onOpenCadBim },
         { label: lang === 'ar' ? 'حفظ المشروع' : 'Save Project (Ctrl+S)', icon: Save, action: () => alert(lang === 'ar' ? 'تم حفظ بيانات النموذج بنجاح!' : 'Model saved to local workspace!') },
+        { label: lang === 'ar' ? 'تصدير النموذج الإنشائي (IFC, DXF, Excel, JSON)...' : 'Export Model (IFC, DXF, Excel, CSV, JSON)...', icon: FileDown, action: onOpenCadBim },
         { label: lang === 'ar' ? 'تصدير تقرير الحسابات (PDF/DXF)' : 'Export Structural Report...', icon: FileDown, action: onOpenReports },
       ]
     },
@@ -251,6 +256,17 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         >
           <FolderOpen className="w-3 h-3 text-[#ffb77d]" />
           <span>{lang === 'ar' ? 'النماذج' : 'Models'}</span>
+        </button>
+
+        {/* CAD & BIM Interoperability */}
+        <button
+          id="top-nav-cad-bim-button"
+          onClick={onOpenCadBim}
+          className="hidden sm:flex items-center space-x-1 px-2 py-0.5 text-[11px] text-[#96ccff] hover:text-[#ffffff] bg-[#96ccff]/10 hover:bg-[#96ccff]/25 border border-[#96ccff]/30 rounded transition-colors"
+          title="CAD & BIM Interoperability (IFC, DXF, Excel, CSV, JSON)"
+        >
+          <Database className="w-3 h-3 text-[#96ccff]" />
+          <span>BIM / CAD</span>
         </button>
 
         {/* Language Switcher */}

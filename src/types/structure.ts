@@ -225,6 +225,7 @@ export interface StructuralModel {
   links?: LinkElement[];
   springs?: SpringElement[];
   diaphragms?: DiaphragmDefinition[];
+  metadata?: Record<string, any>;
 }
 
 export type ActiveCadTool = 

@@ -280,13 +280,18 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         const pickables = layerManagerRef.current.getPickableObjects();
         const intersects = raycasterRef.current.intersectObjects(pickables, true);
         if (intersects.length > 0) {
-          let topObj: THREE.Object3D | null = intersects[0].object;
-          while (topObj && !topObj.userData?.id && topObj.parent) {
-            topObj = topObj.parent;
+          const hit = intersects[0];
+          let elementId: string | null = null;
+          if (hit.object.userData?.isInstancedFrame) {
+            elementId = layerManagerRef.current.frameLayer.getMemberIdFromIntersection(hit);
+          } else {
+            let topObj: THREE.Object3D | null = hit.object;
+            while (topObj && !topObj.userData?.id && topObj.parent) {
+              topObj = topObj.parent;
+            }
+            elementId = topObj?.userData?.id || null;
           }
-          if (topObj?.userData?.id) {
-            setHoveredElementId(topObj.userData.id);
-          }
+          setHoveredElementId(elementId);
         } else {
           setHoveredElementId(null);
         }
@@ -303,13 +308,18 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       const intersects = raycasterRef.current.intersectObjects(pickables, true);
 
       if (intersects.length > 0) {
-        let topObj: THREE.Object3D | null = intersects[0].object;
-        while (topObj && !topObj.userData?.id && topObj.parent) {
-          topObj = topObj.parent;
+        const hit = intersects[0];
+        let elementId: string | null = null;
+        if (hit.object.userData?.isInstancedFrame) {
+          elementId = layerManagerRef.current.frameLayer.getMemberIdFromIntersection(hit);
+        } else {
+          let topObj: THREE.Object3D | null = hit.object;
+          while (topObj && !topObj.userData?.id && topObj.parent) {
+            topObj = topObj.parent;
+          }
+          elementId = topObj?.userData?.id || null;
         }
-        if (topObj?.userData?.id) {
-          onSelectElement(topObj.userData.id);
-        }
+        onSelectElement(elementId);
       } else {
         // Deselect if clicked in empty space
         onSelectElement(null);
