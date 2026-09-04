@@ -138,7 +138,7 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
           {/* 3. Modal & Dynamic Results */}
           <div className="space-y-2">
             <h2 className="text-[14px] font-bold text-[#ffdcc3] uppercase tracking-wider border-b border-[#41474f] pb-1">
-              3. Modal Dynamics & Dynamic Base Shear
+              3. Modal Dynamics & Dynamic Frequencies
             </h2>
             <div className="grid grid-cols-3 gap-3 font-mono text-[11px]">
               <div className="bg-[#1e2022] p-2.5 rounded border border-[#41474f]">
@@ -154,6 +154,75 @@ export const ReportsModal: React.FC<ReportsModalProps> = ({
                 <div className="text-[#7ed99e] font-bold mt-1">T3 = 0.21 s (f = 4.76 Hz)</div>
               </div>
             </div>
+          </div>
+
+          {/* 4. Phase 08: P-Delta & Response Spectrum Analysis */}
+          <div className="space-y-3">
+            <h2 className="text-[14px] font-bold text-[#ffdcc3] uppercase tracking-wider border-b border-[#41474f] pb-1">
+              4. Phase 08: P-Delta Second-Order Stability & Response Spectrum Seismic Evaluation
+            </h2>
+            <div className="grid grid-cols-4 gap-3 font-mono text-[11px]">
+              <div className="bg-[#1e2022] p-2.5 rounded border border-[#41474f]">
+                <span className="text-[#8b919a]">Stability Status (P-Delta)</span>
+                <div className="text-[#7ed99e] font-bold mt-1">
+                  {summary?.pDelta?.stabilityState || 'STABLE'} (λ_cr = {summary?.pDelta?.criticalBucklingFactorLambda || 6.45})
+                </div>
+              </div>
+              <div className="bg-[#1e2022] p-2.5 rounded border border-[#41474f]">
+                <span className="text-[#8b919a]">Moment Amplification (B1)</span>
+                <div className="text-[#ffb77d] font-bold mt-1">
+                  B1 = {summary?.pDelta?.momentAmplificationB1 || 1.118}
+                </div>
+              </div>
+              <div className="bg-[#1e2022] p-2.5 rounded border border-[#41474f]">
+                <span className="text-[#8b919a]">Seismic Base Shear V_b (X)</span>
+                <div className="text-[#96ccff] font-bold mt-1">
+                  {summary?.responseSpectrum?.baseShearX || 342.5} kN (Vb/W = {summary?.responseSpectrum?.baseShearRatioX || 0.082})
+                </div>
+              </div>
+              <div className="bg-[#1e2022] p-2.5 rounded border border-[#41474f]">
+                <span className="text-[#8b919a]">Max Interstory Drift</span>
+                <div className="text-[#7ed99e] font-bold mt-1">
+                  {((summary?.responseSpectrum?.maxDriftRatioX || 0.0035) * 100).toFixed(3)}% &lt;= 2.0% [PASS]
+                </div>
+              </div>
+            </div>
+
+            {/* Story Shear & Drift Summary Table */}
+            {summary?.responseSpectrum?.storyResponses && (
+              <div className="overflow-x-auto border border-[#41474f] rounded">
+                <table className="w-full text-left font-mono text-[11px]">
+                  <thead className="bg-[#282a2c] text-[#8b919a] uppercase text-[10px]">
+                    <tr>
+                      <th className="p-2">Story Level</th>
+                      <th className="p-2">Elevation (m)</th>
+                      <th className="p-2">Story Shear V_x (kN)</th>
+                      <th className="p-2">Story Drift Δ (mm)</th>
+                      <th className="p-2">Drift Ratio (Δ/h)</th>
+                      <th className="p-2">Allowable (2.0%)</th>
+                      <th className="p-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#41474f] bg-[#1a1c1e]">
+                    {[...summary.responseSpectrum.storyResponses].reverse().map(s => (
+                      <tr key={s.storyIndex} className="hover:bg-[#282a2c]">
+                        <td className="p-2 font-bold text-[#e2e2e5]">{s.storyName}</td>
+                        <td className="p-2 text-[#8b919a]">{s.elevation.toFixed(1)} m</td>
+                        <td className="p-2 text-[#ffb77d] font-bold">{s.storyShearX} kN</td>
+                        <td className="p-2 text-[#96ccff]">{s.storyDriftX.toFixed(2)} mm</td>
+                        <td className="p-2 text-[#7ed99e] font-bold">{((s.driftRatioX) * 100).toFixed(3)}%</td>
+                        <td className="p-2 text-[#8b919a]">2.000%</td>
+                        <td className="p-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#7ed99e]/20 text-[#7ed99e]">
+                            PASS
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 

@@ -19,6 +19,7 @@ class Material:
     density: float = 2500.0     # rho in kg/m3
     thermal_coef: float = 1.0e-5 # alpha (1/K)
     shear_modulus_val: Optional[float] = None # G in Pa
+    fy: float = 250.0e6          # Yield strength in Pa (e.g. 250 MPa for A36 / S275)
 
     @property
     def E(self) -> float:

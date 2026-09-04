@@ -32,6 +32,143 @@ try:
 except ImportError:
     HAS_NUMPY = False
 
+    class _MiniArray:
+        def __init__(self, data):
+            if isinstance(data, _MiniArray):
+                self.data = [row[:] if isinstance(row, list) else row for row in data.data]
+            elif isinstance(data, list):
+                self.data = [row[:] if isinstance(row, list) else row for row in data]
+            else:
+                self.data = data
+
+        def __iter__(self):
+            return iter(self.data)
+
+        def __len__(self):
+            return len(self.data)
+
+        def __getitem__(self, idx):
+            if isinstance(idx, tuple):
+                r, c = idx
+                if isinstance(r, slice) and isinstance(c, int):
+                    return _MiniArray([row[c] for row in self.data])
+                elif isinstance(r, int) and isinstance(c, int):
+                    return self.data[r][c]
+                elif isinstance(r, slice) and isinstance(c, slice):
+                    return _MiniArray([row[c] for row in self.data[r]])
+            elif isinstance(idx, int):
+                return self.data[idx]
+            elif isinstance(idx, slice):
+                return _MiniArray(self.data[idx])
+            return self.data[idx]
+
+        def __setitem__(self, idx, val):
+            if isinstance(idx, tuple):
+                r, c = idx
+                self.data[r][c] = float(val)
+            else:
+                self.data[idx] = val
+
+        @property
+        def T(self):
+            if isinstance(self.data, list) and len(self.data) > 0 and isinstance(self.data[0], list):
+                rows = len(self.data)
+                cols = len(self.data[0])
+                res = [[self.data[r][c] for r in range(rows)] for c in range(cols)]
+                return _MiniArray(res)
+            return self
+
+        def __matmul__(self, other):
+            A = self.data
+            B = other.data if isinstance(other, _MiniArray) else other
+            rA = len(A)
+            cA = len(A[0])
+            rB = len(B)
+            cB = len(B[0])
+            C = [[0.0 for _ in range(cB)] for _ in range(rA)]
+            for i in range(rA):
+                for k in range(cA):
+                    aik = A[i][k]
+                    if abs(aik) > 1e-20:
+                        for j in range(cB):
+                            C[i][j] += aik * B[k][j]
+            return _MiniArray(C)
+
+        def __mul__(self, other):
+            if isinstance(other, (int, float)):
+                if isinstance(self.data[0], list):
+                    return _MiniArray([[x * other for x in row] for row in self.data])
+                return _MiniArray([x * other for x in self.data])
+            raise NotImplementedError
+
+        def __rmul__(self, other):
+            return self.__mul__(other)
+
+        def __add__(self, other):
+            A = self.data
+            B = other.data if isinstance(other, _MiniArray) else other
+            if isinstance(A[0], list):
+                res = [[A[i][j] + B[i][j] for j in range(len(A[0]))] for i in range(len(A))]
+                return _MiniArray(res)
+            return _MiniArray([a + b for a, b in zip(A, B)])
+
+        def __truediv__(self, other):
+            if isinstance(other, (int, float)):
+                if isinstance(self.data[0], list):
+                    return _MiniArray([[x / other for x in row] for row in self.data])
+                return _MiniArray([x / other for x in self.data])
+            raise NotImplementedError
+
+        def tolist(self):
+            if isinstance(self.data, list):
+                return [row[:] if isinstance(row, list) else row for row in self.data]
+            return self.data
+
+    class _MiniLinalg:
+        @staticmethod
+        def det(mat):
+            A = mat.data if isinstance(mat, _MiniArray) else mat
+            return A[0][0] * A[1][1] - A[0][1] * A[1][0]
+
+        @staticmethod
+        def inv(mat):
+            A = mat.data if isinstance(mat, _MiniArray) else mat
+            det = A[0][0] * A[1][1] - A[0][1] * A[1][0]
+            if abs(det) < 1e-20:
+                det = 1e-20
+            inv_det = 1.0 / det
+            return _MiniArray([
+                [A[1][1] * inv_det, -A[0][1] * inv_det],
+                [-A[1][0] * inv_det, A[0][0] * inv_det]
+            ])
+
+    class _MiniNumPy:
+        float64 = float
+        linalg = _MiniLinalg
+
+        @staticmethod
+        def array(data, dtype=None):
+            return _MiniArray(data)
+
+        @staticmethod
+        def zeros(shape, dtype=None):
+            if isinstance(shape, tuple) and len(shape) == 2:
+                return _MiniArray([[0.0 for _ in range(shape[1])] for _ in range(shape[0])])
+            return _MiniArray([0.0 for _ in range(shape[0])])
+
+        @staticmethod
+        def dot(u, v):
+            a = u.data if isinstance(u, _MiniArray) else u
+            b = v.data if isinstance(v, _MiniArray) else v
+            return sum(x * y for x, y in zip(a, b))
+
+        @staticmethod
+        def mean(vec):
+            data = vec.data if isinstance(vec, _MiniArray) else vec
+            return sum(data) / len(data)
+
+    np = _MiniNumPy()
+
 
 @dataclass
 class ShellStressResult:

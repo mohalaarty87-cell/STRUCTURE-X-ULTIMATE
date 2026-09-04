@@ -299,6 +299,152 @@ export interface ConsoleMessage {
   source?: string;
 }
 
+export interface JointDisplacementResult {
+  nodeId: string;
+  ux: number; // mm
+  uy: number; // mm
+  uz: number; // mm
+  rx: number; // mrad
+  ry: number; // mrad
+  rz: number; // mrad
+}
+
+export interface JointReactionResult {
+  nodeId: string;
+  fx: number; // kN
+  fy: number; // kN
+  fz: number; // kN
+  mx: number; // kN.m
+  my: number; // kN.m
+  mz: number; // kN.m
+}
+
+export interface FrameForceResult {
+  memberId: string;
+  axialP: number; // kN
+  shearV2: number; // kN
+  shearV3: number; // kN
+  torsionT: number; // kN.m
+  momentM2: number; // kN.m
+  momentM3: number; // kN.m
+}
+
+export interface ShellForceResult {
+  shellId: string;
+  Nxx: number; // kN/m
+  Nyy: number; // kN/m
+  Nxy: number; // kN/m
+  Mxx: number; // kN.m/m
+  Myy: number; // kN.m/m
+  Mxy: number; // kN.m/m
+  Vxz: number; // kN/m
+  Vyz: number; // kN/m
+  vonMisesTop: number; // MPa
+  vonMisesBot: number; // MPa
+}
+
+export interface ModalModeResult {
+  modeNumber: number;
+  frequency: number; // Hz
+  period: number; // s
+  eigenvalue: number; // rad^2/s^2
+  participationMass: { X: number; Y: number; Z: number }; // tonnes
+  participationRatio: { X: number; Y: number; Z: number }; // ratio (0 to 1) or %
+  effectiveModalMass: { X: number; Y: number; Z: number }; // tonnes
+  cumulativeMassRatio: { X: number; Y: number; Z: number }; // %
+  displacements?: Record<string, { ux: number; uy: number; uz: number; rx?: number; ry?: number; rz?: number }>;
+}
+
+export interface PDeltaIterationStep {
+  iteration: number;
+  residualNorm: number;
+  displacementNorm: number;
+  converged: boolean;
+}
+
+export interface PDeltaResultData {
+  converged: boolean;
+  iterations: number;
+  convergenceTolerance: number;
+  iterationHistory: PDeltaIterationStep[];
+  criticalBucklingFactorLambda: number;
+  momentAmplificationB1: number;
+  displacementAmplificationRatio: number;
+  stabilityState: 'STABLE' | 'MARGINAL' | 'UNSTABLE_BUCKLING';
+  linearMaxDisplacement: number; // mm
+  secondOrderMaxDisplacement: number; // mm
+  linearBaseOverturningMoment: number; // kN.m
+  secondOrderBaseOverturningMoment: number; // kN.m
+  secondOrderDisplacements: Record<string, JointDisplacementResult>;
+  secondOrderReactions: Record<string, JointReactionResult>;
+}
+
+export interface StoryResponseData {
+  storyIndex: number;
+  storyName: string;
+  elevation: number; // m
+  storyHeight: number; // m
+  storyShearX: number; // kN
+  storyShearZ: number; // kN
+  storyDriftX: number; // mm
+  storyDriftZ: number; // mm
+  driftRatioX: number;
+  driftRatioZ: number;
+  displacementX: number; // mm
+  displacementZ: number; // mm
+  allowableDriftRatio: number; // e.g. 0.02
+  driftAcceptableX: boolean;
+  driftAcceptableZ: boolean;
+}
+
+export interface ModalSpectrumResponseData {
+  modeNumber: number;
+  period: number; // s
+  frequency: number; // Hz
+  sa_g: number; // g
+  modalBaseShearX: number; // kN
+  modalBaseShearZ: number; // kN
+  massParticipationX: number; // %
+  massParticipationZ: number; // %
+  effectiveModalMassX: number; // tonnes
+  effectiveModalMassZ: number; // tonnes
+}
+
+export interface ResponseSpectrumResultData {
+  spectrumDefinition: {
+    code: 'ASCE7' | 'EUROCODE8' | 'CUSTOM';
+    Ss: number;
+    S1: number;
+    Fa: number;
+    Fv: number;
+    TL: number;
+    R: number;
+    Ie: number;
+    dampingRatio: number;
+    S_DS: number;
+    S_D1: number;
+    T0: number;
+    Ts: number;
+  };
+  spectrumCurve: Array<{ period: number; sa: number }>;
+  modalCombination: 'CQC' | 'SRSS';
+  directionalCombination: 'SRSS' | '100-30';
+  baseShearX: number; // kN
+  baseShearZ: number; // kN
+  totalStructuralWeight: number; // kN
+  baseShearRatioX: number; // Vb_X / W
+  baseShearRatioZ: number; // Vb_Z / W
+  directionalBaseShearSRSS: number; // kN
+  directionalBaseShear100_30: number; // kN
+  storyResponses: StoryResponseData[];
+  modalResponses: ModalSpectrumResponseData[];
+  cqcCorrelationMatrix: number[][];
+  maxDriftRatioX: number;
+  maxDriftRatioZ: number;
+  governingDriftStory: number;
+  isDriftCompliant: boolean;
+}
+
 export interface AnalysisSummary {
   isSolved: boolean;
   totalNodes: number;
@@ -311,4 +457,12 @@ export interface AnalysisSummary {
   executionTimeMs?: number;
   warnings: string[];
   errors: string[];
+  modes?: ModalModeResult[];
+  jointDisplacements?: Record<string, JointDisplacementResult>;
+  jointReactions?: Record<string, JointReactionResult>;
+  frameForces?: Record<string, FrameForceResult>;
+  shellForces?: Record<string, ShellForceResult>;
+  totalEffectiveMass?: { X: number; Y: number; Z: number };
+  pDelta?: PDeltaResultData;
+  responseSpectrum?: ResponseSpectrumResultData;
 }

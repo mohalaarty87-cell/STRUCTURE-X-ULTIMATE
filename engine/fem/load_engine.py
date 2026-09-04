@@ -234,6 +234,14 @@ class MassSummary:
     nodal_masses: Dict[str, NodalMassResult]
     story_masses: List[StoryMassResult]
 
+    @property
+    def total_structural_mass_kg(self) -> float:
+        return self.total_mass_kg
+
+    @property
+    def nodal_mass_kg(self) -> Dict[str, float]:
+        return {nid: res.mass_kg for nid, res in self.nodal_masses.items()}
+
 
 @dataclass
 class LoadCaseItem:
@@ -273,17 +281,85 @@ class LoadCombination:
 @dataclass
 class StaticEquilibriumCheck:
     """Static equilibrium audit comparing Total Applied Loads vs Total Reactions."""
-    case_or_pattern_id: str
-    is_balanced: bool
-    applied_force: Tuple[float, float, float]  # (Fx, Fy, Fz) in N
-    applied_moment: Tuple[float, float, float]  # (Mx, My, Mz) about origin in N*m
-    reaction_force: Tuple[float, float, float]  # (Rx, Ry, Rz) in N
-    reaction_moment: Tuple[float, float, float]  # (RMx, RMy, RMz) about origin in N*m
-    residual_force: Tuple[float, float, float]  # F_applied + R
-    residual_moment: Tuple[float, float, float]
-    relative_force_error_pct: float
-    relative_moment_error_pct: float
+    case_or_pattern_id: str = "ACTIVE_CASE"
+    is_balanced: bool = True
+    applied_force: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # (Fx, Fy, Fz) in N
+    applied_moment: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # (Mx, My, Mz) about origin in N*m
+    reaction_force: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # (Rx, Ry, Rz) in N
+    reaction_moment: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # (RMx, RMy, RMz) about origin in N*m
+    residual_force: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # F_applied + R
+    residual_moment: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    relative_force_error_pct: float = 0.0
+    relative_moment_error_pct: float = 0.0
     tolerance_pct: float = 0.01  # 0.01% standard tolerance
+    # Extended / Compatibility attributes
+    case_id: Optional[str] = None
+    total_applied_fx: float = 0.0
+    total_applied_fy: float = 0.0
+    total_applied_fz: float = 0.0
+    total_applied_mx: float = 0.0
+    total_applied_my: float = 0.0
+    total_applied_mz: float = 0.0
+    total_reaction_fx: float = 0.0
+    total_reaction_fy: float = 0.0
+    total_reaction_fz: float = 0.0
+    total_reaction_mx: float = 0.0
+    total_reaction_my: float = 0.0
+    total_reaction_mz: float = 0.0
+    delta_fx: float = 0.0
+    delta_fy: float = 0.0
+    delta_fz: float = 0.0
+    delta_mx: float = 0.0
+    delta_my: float = 0.0
+    delta_mz: float = 0.0
+    percent_error_force: float = 0.0
+    percent_error_moment: float = 0.0
+    is_equilibrated: bool = True
+
+    def __post_init__(self):
+        if self.case_id and (not self.case_or_pattern_id or self.case_or_pattern_id == "ACTIVE_CASE"):
+            self.case_or_pattern_id = self.case_id
+        if self.applied_force != (0.0, 0.0, 0.0) and self.total_applied_fx == 0.0 and self.total_applied_fy == 0.0:
+            self.total_applied_fx, self.total_applied_fy, self.total_applied_fz = self.applied_force
+        elif self.applied_force == (0.0, 0.0, 0.0) and (self.total_applied_fx != 0.0 or self.total_applied_fy != 0.0 or self.total_applied_fz != 0.0):
+            self.applied_force = (self.total_applied_fx, self.total_applied_fy, self.total_applied_fz)
+
+        if self.applied_moment != (0.0, 0.0, 0.0) and self.total_applied_mx == 0.0 and self.total_applied_my == 0.0:
+            self.total_applied_mx, self.total_applied_my, self.total_applied_mz = self.applied_moment
+        elif self.applied_moment == (0.0, 0.0, 0.0) and (self.total_applied_mx != 0.0 or self.total_applied_my != 0.0 or self.total_applied_mz != 0.0):
+            self.applied_moment = (self.total_applied_mx, self.total_applied_my, self.total_applied_mz)
+
+        if self.reaction_force != (0.0, 0.0, 0.0) and self.total_reaction_fx == 0.0 and self.total_reaction_fy == 0.0:
+            self.total_reaction_fx, self.total_reaction_fy, self.total_reaction_fz = self.reaction_force
+        elif self.reaction_force == (0.0, 0.0, 0.0) and (self.total_reaction_fx != 0.0 or self.total_reaction_fy != 0.0 or self.total_reaction_fz != 0.0):
+            self.reaction_force = (self.total_reaction_fx, self.total_reaction_fy, self.total_reaction_fz)
+
+        if self.reaction_moment != (0.0, 0.0, 0.0) and self.total_reaction_mx == 0.0 and self.total_reaction_my == 0.0:
+            self.total_reaction_mx, self.total_reaction_my, self.total_reaction_mz = self.reaction_moment
+        elif self.reaction_moment == (0.0, 0.0, 0.0) and (self.total_reaction_mx != 0.0 or self.total_reaction_my != 0.0 or self.total_reaction_mz != 0.0):
+            self.reaction_moment = (self.total_reaction_mx, self.total_reaction_my, self.total_reaction_mz)
+
+        if self.residual_force != (0.0, 0.0, 0.0) and self.delta_fx == 0.0:
+            self.delta_fx, self.delta_fy, self.delta_fz = (abs(x) for x in self.residual_force)
+        elif self.residual_force == (0.0, 0.0, 0.0) and (self.delta_fx != 0.0 or self.delta_fy != 0.0 or self.delta_fz != 0.0):
+            self.residual_force = (self.delta_fx, self.delta_fy, self.delta_fz)
+
+        if self.residual_moment != (0.0, 0.0, 0.0) and self.delta_mx == 0.0:
+            self.delta_mx, self.delta_my, self.delta_mz = (abs(x) for x in self.residual_moment)
+        elif self.residual_moment == (0.0, 0.0, 0.0) and (self.delta_mx != 0.0 or self.delta_my != 0.0 or self.delta_mz != 0.0):
+            self.residual_moment = (self.delta_mx, self.delta_my, self.delta_mz)
+
+        if self.relative_force_error_pct != 0.0 and self.percent_error_force == 0.0:
+            self.percent_error_force = self.relative_force_error_pct
+        elif self.relative_force_error_pct == 0.0 and self.percent_error_force != 0.0:
+            self.relative_force_error_pct = self.percent_error_force
+
+        if self.relative_moment_error_pct != 0.0 and self.percent_error_moment == 0.0:
+            self.percent_error_moment = self.relative_moment_error_pct
+        elif self.relative_moment_error_pct == 0.0 and self.percent_error_moment != 0.0:
+            self.relative_moment_error_pct = self.percent_error_moment
+
+        self.is_balanced = self.is_equilibrated = (bool(self.is_balanced) and bool(self.is_equilibrated))
 
 
 class LoadEngine:

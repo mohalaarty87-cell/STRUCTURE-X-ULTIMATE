@@ -37,7 +37,15 @@ class CrossSection:
         return self.iz
 
     @property
+    def moment_of_inertia_z(self) -> float:
+        return self.iz
+
+    @property
     def Iy(self) -> float:
+        return self.iy
+
+    @property
+    def moment_of_inertia_y(self) -> float:
         return self.iy
 
     @property

@@ -15,6 +15,7 @@ from .frame_element_3d import FrameElement3D, MemberLoad, MemberInternalForces
 from .shell_element_3d import ShellElement3D, ShellSurfaceLoad, ShellStressResult
 from .meshing import ShellMeshGenerator, MeshedAreaEntity, MeshQualityReport
 from .load_engine import LoadEngine, StaticEquilibriumCheck, MassSummary, LoadPatternType
+from .modal_analysis import ModalSolver, ModalAnalysisResult, ModalParticipationResult
 from .matrix_ops import (
     create_zero_matrix,
     solve_linear_system,
@@ -309,48 +310,9 @@ class FEMSolver3D:
 
         # 1. Partition DOFs
         free_dofs, restrained_dofs = self.dof_system.partition_dofs()
-        if len(free_dofs) == 0:
-            raise ValueError("All degrees of freedom are restrained; no free system to solve.")
 
         # 2. Assemble Master Sparse Stiffness Matrix K
-        # Dictionary of Keys (DOK) sparse representation
-        dok_K: Dict[Tuple[int, int], float] = {}
-
-        # 2a. Assemble Frame 1D Elements
-        for elem_id, elem in self.elements.items():
-            k_elem_global = elem.get_global_stiffness_matrix()
-            elem_dofs = self.dof_system.get_element_dof_indices(elem.start_node_id, elem.end_node_id)
-
-            for i in range(12):
-                row = elem_dofs[i]
-                for j in range(12):
-                    col = elem_dofs[j]
-                    val = k_elem_global[i][j]
-                    if abs(val) > 1e-18:
-                        key = (row, col)
-                        dok_K[key] = dok_K.get(key, 0.0) + val
-
-        # 2b. Assemble Shell 2D Elements
-        for elem_id, elem in self.shell_elements.items():
-            k_shell_global = elem.get_global_stiffness_matrix()
-            shell_dofs = self.dof_system.get_shell_element_dof_indices(elem.node_ids)
-            n_dofs = len(shell_dofs)
-
-            for i in range(n_dofs):
-                row = shell_dofs[i]
-                for j in range(n_dofs):
-                    col = shell_dofs[j]
-                    val = k_shell_global[i][j]
-                    if abs(val) > 1e-18:
-                        key = (row, col)
-                        dok_K[key] = dok_K.get(key, 0.0) + val
-
-        # 3. Add Grounded Spring Stiffness terms to diagonals
-        for node_id, springs in self.dof_system.grounded_springs.items():
-            base_dof = self.dof_system.node_indices[node_id] * 6
-            for dof_idx, k_val in springs.items():
-                g_dof = base_dof + dof_idx
-                dok_K[(g_dof, g_dof)] = dok_K.get((g_dof, g_dof), 0.0) + k_val
+        dok_K = self.assemble_master_stiffness_matrix()
 
         # 4. Assemble Global Force Vector P_global
         P_global = [0.0] * total_dofs
@@ -400,7 +362,7 @@ class FEMSolver3D:
                         P_f[i_idx] -= val * u_r[j_idx]
 
         # 6. Solve K_ff * u_f = P_f_eff
-        u_f = solve_sparse_system(dok_K, free_dofs, P_f)
+        u_f = solve_sparse_system(dok_K, free_dofs, P_f) if free_dofs else []
 
         # 7. Reconstruct Full Global Displacement Vector U (total_dofs x 1)
         U_full = [0.0] * total_dofs
@@ -610,8 +572,73 @@ class FEMSolver3D:
         nodes = self.dof_system.nodes
         return self.load_engine.calculate_mass_source(
             nodes=nodes,
-            frame_elements=self.elements,
+            members=self.elements,
+            shell_elements=self.shell_elements
+        )
+
+    def assemble_master_stiffness_matrix(self) -> Dict[Tuple[int, int], float]:
+        """
+        Assembles and returns the master sparse global stiffness matrix
+        in Dictionary of Keys (DOK) coordinate format.
+        """
+        dok_K: Dict[Tuple[int, int], float] = {}
+
+        # 1. Assemble 3D Frame 1D Elements
+        for elem_id, elem in self.elements.items():
+            k_elem_global = elem.get_global_stiffness_matrix()
+            elem_dofs = self.dof_system.get_element_dof_indices(elem.start_node_id, elem.end_node_id)
+            for i in range(12):
+                row = elem_dofs[i]
+                for j in range(12):
+                    col = elem_dofs[j]
+                    val = k_elem_global[i][j]
+                    if abs(val) > 1e-18:
+                        key = (row, col)
+                        dok_K[key] = dok_K.get(key, 0.0) + val
+
+        # 2. Assemble 3D Shell 2D Elements
+        for elem_id, elem in self.shell_elements.items():
+            k_shell_global = elem.get_global_stiffness_matrix()
+            shell_dofs = self.dof_system.get_shell_element_dof_indices(elem.node_ids)
+            n_dofs = len(shell_dofs)
+            for i in range(n_dofs):
+                row = shell_dofs[i]
+                for j in range(n_dofs):
+                    col = shell_dofs[j]
+                    val = k_shell_global[i][j]
+                    if abs(val) > 1e-18:
+                        key = (row, col)
+                        dok_K[key] = dok_K.get(key, 0.0) + val
+
+        # 3. Add Grounded Spring Stiffness terms to diagonals
+        for node_id, springs in self.dof_system.grounded_springs.items():
+            base_dof = self.dof_system.node_indices[node_id] * 6
+            for dof_idx, k_val in springs.items():
+                g_dof = base_dof + dof_idx
+                dok_K[(g_dof, g_dof)] = dok_K.get((g_dof, g_dof), 0.0) + k_val
+
+        return dok_K
+
+    def solve_modal(
+        self,
+        num_modes: int = 12,
+        use_consistent_mass: bool = False
+    ) -> ModalAnalysisResult:
+        """
+        Executes complete eigenvalue modal analysis:
+          - Assembles global mass matrix M_global (consistent/lumped + mass source)
+          - Partitions free unconstrained DOFs
+          - Solves generalized eigenvalue problem K_ff * phi = lambda * M_ff * phi
+          - Computes natural frequencies, periods, modal participation factors, and effective modal mass.
+        """
+        dok_K = self.assemble_master_stiffness_matrix()
+        solver = ModalSolver(
+            dof_system=self.dof_system,
+            elements=self.elements,
             shell_elements=self.shell_elements,
             materials=self.materials,
-            sections=self.sections
+            sections=self.sections,
+            dok_K=dok_K,
+            load_engine=self.load_engine
         )
+        return solver.solve_modal(num_modes=num_modes, use_consistent_mass=use_consistent_mass)

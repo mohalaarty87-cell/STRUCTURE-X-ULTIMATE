@@ -347,6 +347,73 @@ class FrameElement3D:
 
         return k
 
+    def get_local_geometric_stiffness_matrix(self, P: float) -> List[List[float]]:
+        """
+        Calculates 12x12 local geometric stiffness matrix [k_g] for axial force P.
+        Sign convention: P > 0 is tension, P < 0 is compression.
+        Under compression (P < 0), k_g reduces lateral stiffness (tangent K_T = K_E + K_G).
+        """
+        L = self.length
+        if L <= 1e-9:
+            return create_zero_matrix(12, 12)
+
+        kg = create_zero_matrix(12, 12)
+        if abs(P) < 1e-15:
+            return kg
+
+        # Bending in local x-y plane (about local z-axis) -> DOFs (1, 5, 7, 11)
+        c1 = (6.0 * P) / (5.0 * L)
+        c2 = P / 10.0
+        c3 = (2.0 * P * L) / 15.0
+        c4 = -(P * L) / 30.0
+
+        kg[1][1] = c1;  kg[1][5] = c2;  kg[1][7] = -c1; kg[1][11] = c2
+        kg[5][1] = c2;  kg[5][5] = c3;  kg[5][7] = -c2; kg[5][11] = c4
+        kg[7][1] = -c1; kg[7][5] = -c2; kg[7][7] = c1;  kg[7][11] = -c2
+        kg[11][1] = c2; kg[11][5] = c4; kg[11][7] = -c2; kg[11][11] = c3
+
+        # Bending in local x-z plane (about local y-axis) -> DOFs (2, 4, 8, 10)
+        # Note sign convention for theta_y = -duz/dx
+        kg[2][2] = c1;   kg[2][4] = -c2;  kg[2][8] = -c1;  kg[2][10] = -c2
+        kg[4][2] = -c2;  kg[4][4] = c3;   kg[4][8] = c2;   kg[4][10] = c4
+        kg[8][2] = -c1;  kg[8][4] = c2;   kg[8][8] = c1;   kg[8][10] = c2
+        kg[10][2] = -c2; kg[10][4] = c4;  kg[10][8] = c2;  kg[10][10] = c3
+
+        # Torsion -> DOFs (3, 9)
+        A = self.section.A
+        if A > 1e-12:
+            rp2 = (self.section.Iy + self.section.Iz) / A
+            c_tor = (P * rp2) / L
+            kg[3][3] = c_tor;  kg[3][9] = -c_tor
+            kg[9][3] = -c_tor; kg[9][9] = c_tor
+
+        # End releases modification if hinges are present
+        rel_mz_i = self.release_start.get('mz', False) or self.release_start.get('rz', False)
+        rel_mz_j = self.release_end.get('mz', False) or self.release_end.get('rz', False)
+        if rel_mz_i or rel_mz_j:
+            if rel_mz_i and rel_mz_j:
+                kg[1][1] = P / L; kg[1][5] = 0.0; kg[1][7] = -P / L; kg[1][11] = 0.0
+                kg[5][1] = 0.0;   kg[5][5] = 0.0; kg[5][7] = 0.0;    kg[5][11] = 0.0
+                kg[7][1] = -P / L; kg[7][5] = 0.0; kg[7][7] = P / L; kg[7][11] = 0.0
+                kg[11][1] = 0.0;  kg[11][5] = 0.0; kg[11][7] = 0.0;   kg[11][11] = 0.0
+
+        rel_my_i = self.release_start.get('my', False) or self.release_start.get('ry', False)
+        rel_my_j = self.release_end.get('my', False) or self.release_end.get('ry', False)
+        if rel_my_i or rel_my_j:
+            if rel_my_i and rel_my_j:
+                kg[2][2] = P / L; kg[2][4] = 0.0; kg[2][8] = -P / L; kg[2][10] = 0.0
+                kg[4][2] = 0.0;   kg[4][4] = 0.0; kg[4][8] = 0.0;    kg[4][10] = 0.0
+                kg[8][2] = -P / L; kg[8][4] = 0.0; kg[8][8] = P / L; kg[8][10] = 0.0
+                kg[10][2] = 0.0;  kg[10][4] = 0.0; kg[10][8] = 0.0;   kg[10][10] = 0.0
+
+        return kg
+
+    def get_global_geometric_stiffness_matrix(self, P: float) -> List[List[float]]:
+        """Calculates [K_g,global] = [T]^T * [k_g,local] * [T] (12x12)."""
+        kg_loc = self.get_local_geometric_stiffness_matrix(P)
+        T = self.get_transformation_matrix()
+        return transform_element_stiffness(kg_loc, T)
+
     def get_global_stiffness_matrix(self) -> List[List[float]]:
         """Calculates [K_e,global] = [T]^T * [k_e,local] * [T] (12x12)."""
         if self._k_global is not None:
