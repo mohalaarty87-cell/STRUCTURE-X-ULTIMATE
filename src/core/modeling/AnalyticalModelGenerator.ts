@@ -86,9 +86,9 @@ export class AnalyticalModelGenerator {
 
     // 1. Establish 6-DOF map for all structural nodes
     for (const node of model.nodes) {
-      const rest = node.isRestrained || {};
+      const rest: Partial<NonNullable<NodePoint['isRestrained']>> = node.isRestrained || {};
       const dofs: [number, number, number, number, number, number] = [-1, -1, -1, -1, -1, -1];
-      const restKeys: (keyof typeof rest)[] = ['fx', 'fy', 'fz', 'mx', 'my', 'mz'];
+      const restKeys: (keyof NonNullable<NodePoint['isRestrained']>)[] = ['fx', 'fy', 'fz', 'mx', 'my', 'mz'];
 
       for (let d = 0; d < 6; d++) {
         const isFixed = Boolean(rest[restKeys[d]]);

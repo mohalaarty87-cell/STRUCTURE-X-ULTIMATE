@@ -12,9 +12,9 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-  // Request logging middleware
-  app.use((req, res, next) => {
-    logger.debug('HTTP', `${req.method} ${req.url}`);
+  // Request logging middleware (API routes only)
+  app.use('/api', (req, res, next) => {
+    logger.debug('HTTP', `${req.method} ${req.originalUrl}`);
     next();
   });
 
